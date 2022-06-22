@@ -95,6 +95,16 @@ class Extractor:
         if isinstance(self.minion.results, tuple):
             return
 
+        # PQ
+        # ["$45.99", "$46.99"]
+        if self.action_type == "pq":
+            distinct_set = set(self.minion.results)
+            if len(distinct_set) != 1:
+                distinct_list = list(distinct_set)
+                value_a = distinct_list[0]
+                value_b = distinct_list[1]
+                raise NonDuplicateElementsFoundException(self.element_name, value_a, value_b)
+
         # [["<div"], ["<div"], ["<div"], ["<div"]]
         # [["123 fake street, Cleveland, OH 44123"], ["456 fake street, Cleveland, OH 44123"], ["789 fake street, Cleveland, OH 44123"]]
         # [["123 fake street", "Cleveland", "OH", "44123"], ["456 fake street", "Cleveland", "OH", "44123"], ["789 fake street", "Cleveland", "OH", "44123"]]
@@ -145,10 +155,19 @@ class Minion:
         self.multiple_rows_found = False
 
     def search(self):
-        for i, match_object in enumerate(re.finditer(self.action, self.source, flags=re.I | re.S)):
+        if self.action_type == "re":
+            result_set = re.finditer(self.action, self.source, flags=re.I | re.S)
+        else:
+            result_set = self.source.items(self.action)
+
+        for i, match_object in enumerate(result_set):
             if i:
                 self.multiple_rows_found = True
-            self.results.append(match_object.groups())
+
+            if self.action_type == "re":
+                self.results.append(match_object.groups())
+            else:
+                self.results.append(match_object)
 
         # ["<html tag>123 fake street, Cleveland, OH 44123", "456 fake street, Cleveland, OH 44123", "789 fake street, Cleveland, OH 44123"]
         # ["<span>hey my</span>& dude, the cost is &pound;420"]
@@ -164,6 +183,8 @@ class Minion:
                 for sub_element in element:
                     tuple_sanitized_list.append(sanitize_html(sub_element))
                 sanitized_list.append(tuple(tuple_sanitized_list))
+            elif isinstance(element, pq):
+                sanitized_list.append(sanitize_html(element.html()))
             else:
                 sanitized_list.append(sanitize_html(element))
 
