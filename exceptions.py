@@ -37,3 +37,9 @@ class ImproperlyConfiguredException(Exception):
         else:
             message = "Grab action is improperly configured, it contains both RegEx(s) and selector(s)."
         super().__init__(message)
+
+
+class DataTypeMissMatchException(Exception):
+    def __init__(self, value, expected):
+        message = f"Failed to convert '{value}' to {expected}"
+        super().__init__(message)
